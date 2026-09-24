@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AudioFile
@@ -637,7 +638,7 @@ fun VaultDashboardScreen(
                                 ModernVaultGridCard(
                                     title = VaultStrings.get(appLanguage, "cat_notes"),
                                     count = "$noteCount notes",
-                                    iconDrawable = com.example.R.drawable.ic_app_notes_real_1789885876446,
+                                    iconDrawable = com.example.R.drawable.img_vault_notes_art_1790263971459,
                                     fallbackIcon = Icons.Default.Description,
                                     gradient = listOf(Color(0xFF059669), Color(0xFF047857)),
                                     badgeColor = Color(0xFF34D399),
@@ -651,7 +652,7 @@ fun VaultDashboardScreen(
                                 ModernVaultGridCard(
                                     title = VaultStrings.get(appLanguage, "cat_audios"),
                                     count = "$audioCount audios",
-                                    iconDrawable = com.example.R.drawable.ic_disguise_music_1789899183733,
+                                    iconDrawable = com.example.R.drawable.img_vault_audios_art_1790263988318,
                                     fallbackIcon = Icons.Default.AudioFile,
                                     gradient = listOf(Color(0xFF7C3AED), Color(0xFF6D28D9)),
                                     badgeColor = Color(0xFFA78BFA),
@@ -693,7 +694,7 @@ fun VaultDashboardScreen(
                                 ModernVaultGridCard(
                                     title = VaultStrings.get(appLanguage, "cat_documents"),
                                     count = "PDF, Office & Zip",
-                                    iconDrawable = com.example.R.drawable.ic_disguise_files_1789899243046,
+                                    iconDrawable = com.example.R.drawable.img_vault_docs_art_1790264003193,
                                     fallbackIcon = Icons.Default.FolderZip,
                                     gradient = listOf(Color(0xFF0D9488), Color(0xFF0F766E)),
                                     badgeColor = Color(0xFF2DD4BF),
@@ -760,7 +761,7 @@ fun VaultDashboardScreen(
                                                 modifier = Modifier.weight(1f)
                                             ) {
                                                 Surface(
-                                                    modifier = Modifier.size(44.dp),
+                                                    modifier = Modifier.size(50.dp),
                                                     shape = RoundedCornerShape(14.dp),
                                                     color = Color(0xFF4F46E5).copy(alpha = 0.3f),
                                                     border = androidx.compose.foundation.BorderStroke(
@@ -769,11 +770,17 @@ fun VaultDashboardScreen(
                                                     )
                                                 ) {
                                                     Box(contentAlignment = Alignment.Center) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Shield,
-                                                            contentDescription = null,
-                                                            tint = Color(0xFFA5B4FC),
-                                                            modifier = Modifier.size(24.dp)
+                                                        AsyncImage(
+                                                            model = ImageRequest.Builder(LocalContext.current)
+                                                                .data(com.example.R.drawable.img_vault_applock_art_1790264045573)
+                                                                .crossfade(true)
+                                                                .size(160, 160)
+                                                                .build(),
+                                                            contentDescription = "App Lock Shield",
+                                                            contentScale = ContentScale.Crop,
+                                                            modifier = Modifier
+                                                                .fillMaxSize()
+                                                                .clip(RoundedCornerShape(14.dp))
                                                         )
                                                     }
                                                 }
@@ -1056,18 +1063,33 @@ fun ModernVaultGridCard(
                     verticalAlignment = Alignment.Top
                 ) {
                     Surface(
-                        modifier = Modifier.size(54.dp),
+                        modifier = Modifier.size(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         color = gradient.first().copy(alpha = 0.25f),
                         border = androidx.compose.foundation.BorderStroke(1.dp, gradient.first().copy(alpha = 0.5f))
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = fallbackIcon,
-                                contentDescription = title,
-                                tint = badgeColor,
-                                modifier = Modifier.size(28.dp)
-                            )
+                            if (iconDrawable != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(iconDrawable)
+                                        .crossfade(true)
+                                        .size(160, 160)
+                                        .build(),
+                                    contentDescription = title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(16.dp))
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = fallbackIcon,
+                                    contentDescription = title,
+                                    tint = badgeColor,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
                     }
 

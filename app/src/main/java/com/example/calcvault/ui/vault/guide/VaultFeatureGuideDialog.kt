@@ -26,6 +26,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AudioFile
@@ -115,7 +118,7 @@ fun getIntroInfoForTab(tab: VaultScreenTab): CategoryIntroInfo {
             subtitleKey = "overlay_notes_sub",
             accentColor = Color(0xFF10B981),
             heroIcon = Icons.Default.Description,
-            heroDrawable = com.example.R.drawable.ic_app_notes_real_1789885876446,
+            heroDrawable = com.example.R.drawable.img_vault_notes_art_1790263971459,
             steps = listOf(
                 IntroStepInfo("overlay_notes_step1_title", "overlay_notes_step1_desc", Icons.Default.Description),
                 IntroStepInfo("overlay_notes_step2_title", "overlay_notes_step2_desc", Icons.Default.Check)
@@ -126,7 +129,7 @@ fun getIntroInfoForTab(tab: VaultScreenTab): CategoryIntroInfo {
             subtitleKey = "overlay_docs_sub",
             accentColor = Color(0xFF8B5CF6),
             heroIcon = Icons.Default.Description,
-            heroDrawable = com.example.R.drawable.ic_disguise_files_1789899243046,
+            heroDrawable = com.example.R.drawable.img_vault_docs_art_1790264003193,
             steps = listOf(
                 IntroStepInfo("overlay_docs_step1_title", "overlay_docs_step1_desc", Icons.Default.Lock),
                 IntroStepInfo("overlay_docs_step2_title", "overlay_docs_step2_desc", Icons.Default.Check)
@@ -137,7 +140,7 @@ fun getIntroInfoForTab(tab: VaultScreenTab): CategoryIntroInfo {
             subtitleKey = "overlay_audio_sub",
             accentColor = Color(0xFFEC4899),
             heroIcon = Icons.Default.AudioFile,
-            heroDrawable = com.example.R.drawable.ic_disguise_radio,
+            heroDrawable = com.example.R.drawable.img_vault_audios_art_1790263988318,
             steps = listOf(
                 IntroStepInfo("overlay_audio_step1_title", "overlay_audio_step1_desc", Icons.Default.VisibilityOff),
                 IntroStepInfo("overlay_audio_step2_title", "overlay_audio_step2_desc", Icons.Default.AudioFile)
@@ -148,7 +151,7 @@ fun getIntroInfoForTab(tab: VaultScreenTab): CategoryIntroInfo {
             subtitleKey = "overlay_browser_sub",
             accentColor = Color(0xFF06B6D4),
             heroIcon = Icons.Default.Public,
-            heroDrawable = com.example.R.drawable.img_vault_browser_icon_1790257683240,
+            heroDrawable = com.example.R.drawable.img_vault_real_browser_1790259063071,
             steps = listOf(
                 IntroStepInfo("overlay_browser_step1_title", "overlay_browser_step1_desc", Icons.Default.Public),
                 IntroStepInfo("overlay_browser_step2_title", "overlay_browser_step2_desc", Icons.Default.Lock)
@@ -159,6 +162,7 @@ fun getIntroInfoForTab(tab: VaultScreenTab): CategoryIntroInfo {
             subtitleKey = "overlay_applock_sub",
             accentColor = Color(0xFF6366F1),
             heroIcon = Icons.Default.Lock,
+            heroDrawable = com.example.R.drawable.img_vault_applock_art_1790264045573,
             steps = listOf(
                 IntroStepInfo("overlay_applock_step1_title", "overlay_applock_step1_desc", Icons.Default.Security),
                 IntroStepInfo("overlay_applock_step2_title", "overlay_applock_step2_desc", Icons.Default.LockOpen)
@@ -302,8 +306,12 @@ fun CategoryIntroOverlay(
                     contentAlignment = Alignment.Center
                 ) {
                     if (info.heroDrawable != null) {
-                        Image(
-                            painter = painterResource(id = info.heroDrawable),
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(info.heroDrawable)
+                                .crossfade(true)
+                                .size(160, 160)
+                                .build(),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(46.dp)
