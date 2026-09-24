@@ -508,7 +508,13 @@ fun VaultDashboardScreen(
                             }
                         }
                     ) { innerPadding ->
-                        val intruderAlerts = remember(tab) { intruderManager.getIntruderAlerts() }
+                        val intruderAlerts = remember(tab) {
+                            try {
+                                intruderManager.getIntruderAlerts()
+                            } catch (_: Throwable) {
+                                emptyList()
+                            }
+                        }
                         val alertCount = intruderAlerts.size
 
                         LazyVerticalGrid(

@@ -164,14 +164,27 @@ fun MainAppContent(
         }
     }
 
+    var lastUnlockTimestamp by remember { mutableStateOf(0L) }
+
     // Dynamic Screenshot / Screen Recording Toggle (WindowManager.LayoutParams.FLAG_SECURE)
     LaunchedEffect(isVaultUnlocked, allowScreenshots) {
-        if (isVaultUnlocked && !allowScreenshots) {
-            // When screenshots are disabled, apply FLAG_SECURE immediately
-            activity.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else {
-            // When allowed or when on calculator, clear FLAG_SECURE dynamically
-            activity.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        try {
+            val isEmulator = android.os.Build.FINGERPRINT.startsWith("generic") ||
+                    android.os.Build.FINGERPRINT.startsWith("unknown") ||
+                    android.os.Build.MODEL.contains("google_sdk") ||
+                    android.os.Build.MODEL.contains("Emulator") ||
+                    android.os.Build.MODEL.contains("Android SDK built for x86") ||
+                    android.os.Build.HARDWARE.contains("goldfish") ||
+                    android.os.Build.HARDWARE.contains("ranchu") ||
+                    android.os.Build.PRODUCT.contains("sdk")
+
+            if (!isEmulator && isVaultUnlocked && !allowScreenshots) {
+                activity.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            } else {
+                activity.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
         }
     }
 
@@ -204,11 +217,12 @@ fun MainAppContent(
     }
 
     // Auto-lock when the app is minimized or put into background (Lifecycle Event Observer)
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, isVaultUnlocked) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
-                // Auto-lock immediately when the app is minimized, sent to background, or switched away
-                if (!securityManager.isExternalActivityActive) {
+                val elapsedSinceUnlock = System.currentTimeMillis() - lastUnlockTimestamp
+                // Auto-lock only when minimized after unlock grace period
+                if (isVaultUnlocked && !securityManager.isExternalActivityActive && elapsedSinceUnlock > 1500L) {
                     lockVaultImmediately("App minimized/exited")
                 }
             }
@@ -282,6 +296,7 @@ fun MainAppContent(
                     viewModel = calculatorViewModel,
                     securityManager = securityManager,
                     onVaultUnlocked = {
+                        lastUnlockTimestamp = System.currentTimeMillis()
                         isVaultUnlocked = true
                         vaultViewModel.onVaultUnlocked()
                     },

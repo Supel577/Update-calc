@@ -30,12 +30,16 @@ class IntruderManager(private val context: Context) {
     private val intrudersDir: File
         get() {
             val dir = File(context.filesDir, "intruders")
-            if (!dir.exists()) {
-                dir.mkdirs()
-            }
-            val nomedia = File(dir, ".nomedia")
-            if (!nomedia.exists()) {
-                nomedia.createNewFile()
+            try {
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
+                val nomedia = File(dir, ".nomedia")
+                if (!nomedia.exists()) {
+                    nomedia.createNewFile()
+                }
+            } catch (e: Throwable) {
+                Log.w("IntruderManager", "Error preparing intruders dir: ${e.message}")
             }
             return dir
         }
@@ -63,19 +67,24 @@ class IntruderManager(private val context: Context) {
     }
 
     fun getIntruderAlerts(): List<IntruderAlert> {
-        val dir = intrudersDir
-        val files = dir.listFiles { f -> f.isFile && f.extension.equals("jpg", ignoreCase = true) } ?: return emptyList()
-        val dateFormat = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault())
+        return try {
+            val dir = intrudersDir
+            val files = dir.listFiles { f -> f.isFile && f.extension.equals("jpg", ignoreCase = true) } ?: return emptyList()
+            val dateFormat = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault())
 
-        return files.mapNotNull { file ->
-            val timestamp = file.name.removePrefix("intruder_").removeSuffix(".jpg").toLongOrNull() ?: file.lastModified()
-            IntruderAlert(
-                id = file.name,
-                file = file,
-                timestamp = timestamp,
-                formattedDate = dateFormat.format(Date(timestamp))
-            )
-        }.sortedByDescending { it.timestamp }
+            files.mapNotNull { file ->
+                val timestamp = file.name.removePrefix("intruder_").removeSuffix(".jpg").toLongOrNull() ?: file.lastModified()
+                IntruderAlert(
+                    id = file.name,
+                    file = file,
+                    timestamp = timestamp,
+                    formattedDate = dateFormat.format(Date(timestamp))
+                )
+            }.sortedByDescending { it.timestamp }
+        } catch (e: Throwable) {
+            Log.w("IntruderManager", "Failed to list intruder alerts: ${e.message}")
+            emptyList()
+        }
     }
 
     fun deleteAlert(alert: IntruderAlert): Boolean {

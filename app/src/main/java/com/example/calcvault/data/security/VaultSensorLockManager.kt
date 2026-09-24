@@ -30,21 +30,49 @@ class VaultSensorLockManager(
     private val SHAKE_FORCE_THRESHOLD = 2.3f
     private val SHAKE_WINDOW_MS = 800L
     private var lastTriggerTime: Long = 0L
+    private var unlockGracePeriodUntil: Long = 0L
+
+    private val isRunningInEmulator: Boolean by lazy {
+        android.os.Build.FINGERPRINT.startsWith("generic") ||
+                android.os.Build.FINGERPRINT.startsWith("unknown") ||
+                android.os.Build.MODEL.contains("google_sdk") ||
+                android.os.Build.MODEL.contains("Emulator") ||
+                android.os.Build.MODEL.contains("Android SDK built for x86") ||
+                android.os.Build.HARDWARE.contains("goldfish") ||
+                android.os.Build.HARDWARE.contains("ranchu") ||
+                android.os.Build.PRODUCT.contains("sdk")
+    }
 
     fun startListening(onLock: (reason: String) -> Unit) {
+        if (isRunningInEmulator) {
+            Log.d("VaultSensorLock", "Running in emulator; hardware sensor locks disabled.")
+            return
+        }
+        if (!securityManager.isFlipLockEnabled() && !securityManager.isShakeLockEnabled()) {
+            Log.d("VaultSensorLock", "Both flip and shake locks are disabled.")
+            return
+        }
         if (isListening || accelerometer == null || sensorManager == null) return
+
         this.onLockCallback = onLock
         faceDownStartTime = 0L
         shakeCount = 0
         lastShakeTimestamp = 0L
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI)
-        isListening = true
-        Log.d("VaultSensorLock", "Sensor lock listener registered")
+        unlockGracePeriodUntil = System.currentTimeMillis() + 3000L // 3-second grace period upon unlock
+        try {
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI)
+            isListening = true
+            Log.d("VaultSensorLock", "Sensor lock listener registered")
+        } catch (e: Exception) {
+            Log.w("VaultSensorLock", "Failed to register sensor: ${e.message}")
+        }
     }
 
     fun stopListening() {
         if (!isListening || sensorManager == null) return
-        sensorManager.unregisterListener(this)
+        try {
+            sensorManager.unregisterListener(this)
+        } catch (_: Exception) {}
         isListening = false
         onLockCallback = null
         faceDownStartTime = 0L
@@ -57,7 +85,11 @@ class VaultSensorLockManager(
         if (securityManager.isExternalActivityActive) return
 
         val now = System.currentTimeMillis()
-        if (now - lastTriggerTime < 1500L) {
+        if (now < unlockGracePeriodUntil) {
+            // Still in unlock grace period, ignore all triggers
+            return
+        }
+        if (now - lastTriggerTime < 2500L) {
             // Cool-down after triggering lock
             return
         }
