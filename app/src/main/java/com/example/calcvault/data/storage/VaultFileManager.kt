@@ -32,49 +32,37 @@ data class VaultMetaInfo(
 class VaultFileManager(private val context: Context) {
 
     val vaultMediaDir: File by lazy {
-        // Persistent directory in Public Documents so data survives app uninstall (HideU Calculator Vault feature)
-        val publicDocs = try {
-            val docs = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-            if (!docs.exists()) docs.mkdirs()
-            File(docs, ".calcvault_secure_data")
-        } catch (_: Exception) {
-            null
-        }
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val chosenDir = File(baseDir, ".calcvault_secure_data")
 
-        val chosenDir = if (publicDocs != null && (publicDocs.exists() || publicDocs.mkdirs())) {
-            publicDocs
-        } else {
-            val appExt = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-                ?: context.getExternalFilesDir(null)
-                ?: context.filesDir
-            File(appExt, ".calcvault_secure_data")
-        }
-
-        chosenDir.apply {
-            if (!exists()) {
-                mkdirs()
+        try {
+            if (!chosenDir.exists()) {
+                chosenDir.mkdirs()
             }
-            val nomedia = File(this, ".nomedia")
+            val nomedia = File(chosenDir, ".nomedia")
             if (!nomedia.exists()) {
-                try { nomedia.createNewFile() } catch (_: Exception) {}
+                nomedia.createNewFile()
             }
+        } catch (e: Throwable) {
+            e.printStackTrace()
         }
+        chosenDir
     }
 
     val photosDir: File by lazy {
-        File(vaultMediaDir, "photos").apply { if (!exists()) mkdirs() }
+        File(vaultMediaDir, "photos").apply { try { if (!exists()) mkdirs() } catch (_: Throwable) {} }
     }
 
     val videosDir: File by lazy {
-        File(vaultMediaDir, "videos").apply { if (!exists()) mkdirs() }
+        File(vaultMediaDir, "videos").apply { try { if (!exists()) mkdirs() } catch (_: Throwable) {} }
     }
 
     val audiosDir: File by lazy {
-        File(vaultMediaDir, "audios").apply { if (!exists()) mkdirs() }
+        File(vaultMediaDir, "audios").apply { try { if (!exists()) mkdirs() } catch (_: Throwable) {} }
     }
 
     val documentsDir: File by lazy {
-        File(vaultMediaDir, "documents").apply { if (!exists()) mkdirs() }
+        File(vaultMediaDir, "documents").apply { try { if (!exists()) mkdirs() } catch (_: Throwable) {} }
     }
 
     fun saveVaultMeta(pinHash: String, pinLength: Int, securityQuestion: String?, securityAnswerHash: String?) {
@@ -95,9 +83,9 @@ class VaultFileManager(private val context: Context) {
 
     fun readVaultMeta(): VaultMetaInfo? {
         val candidateFiles = listOfNotNull(
-            File(vaultMediaDir, "vault_meta.dat"),
-            try { File(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), ".calcvault_secure_data"), "vault_meta.dat") } catch (_: Exception) { null },
-            context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)?.let { File(File(it, ".calcvault_secure_data"), "vault_meta.dat") }
+            try { File(vaultMediaDir, "vault_meta.dat") } catch (_: Throwable) { null },
+            try { context.getExternalFilesDir(null)?.let { File(File(it, ".calcvault_secure_data"), "vault_meta.dat") } } catch (_: Throwable) { null },
+            try { File(context.filesDir, "vault_meta.dat") } catch (_: Throwable) { null }
         )
         for (file in candidateFiles) {
             if (file.exists()) {

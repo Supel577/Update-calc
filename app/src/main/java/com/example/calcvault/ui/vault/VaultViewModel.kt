@@ -551,8 +551,12 @@ class VaultViewModel(
 
     fun onVaultUnlocked() {
         viewModelScope.launch {
-            repository.reindexPersistentFiles()
-            refreshStorageSize()
+            try {
+                repository.reindexPersistentFiles()
+                refreshStorageSize()
+            } catch (t: Throwable) {
+                android.util.Log.e("VaultViewModel", "Error during onVaultUnlocked: ${t.message}", t)
+            }
         }
     }
 

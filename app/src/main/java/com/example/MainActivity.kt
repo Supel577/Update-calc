@@ -166,28 +166,6 @@ fun MainAppContent(
 
     var lastUnlockTimestamp by remember { mutableStateOf(0L) }
 
-    // Dynamic Screenshot / Screen Recording Toggle (WindowManager.LayoutParams.FLAG_SECURE)
-    LaunchedEffect(isVaultUnlocked, allowScreenshots) {
-        try {
-            val isEmulator = android.os.Build.FINGERPRINT.startsWith("generic") ||
-                    android.os.Build.FINGERPRINT.startsWith("unknown") ||
-                    android.os.Build.MODEL.contains("google_sdk") ||
-                    android.os.Build.MODEL.contains("Emulator") ||
-                    android.os.Build.MODEL.contains("Android SDK built for x86") ||
-                    android.os.Build.HARDWARE.contains("goldfish") ||
-                    android.os.Build.HARDWARE.contains("ranchu") ||
-                    android.os.Build.PRODUCT.contains("sdk")
-
-            if (!isEmulator && isVaultUnlocked && !allowScreenshots) {
-                activity.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            } else {
-                activity.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            }
-        } catch (e: Throwable) {
-            e.printStackTrace()
-        }
-    }
-
     // Panic / Stealth Hardware Sensor Lock Manager (Flip-Down & Shake)
     val sensorLockManager = remember { VaultSensorLockManager(context, securityManager) }
     val lockVaultImmediately: (String) -> Unit = { reason ->

@@ -1062,23 +1062,12 @@ fun ModernVaultGridCard(
                         border = androidx.compose.foundation.BorderStroke(1.dp, gradient.first().copy(alpha = 0.5f))
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            if (iconDrawable != null && iconDrawable != com.example.R.drawable.ic_launcher_foreground) {
-                                Image(
-                                    painter = painterResource(id = iconDrawable),
-                                    contentDescription = title,
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(RoundedCornerShape(12.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = fallbackIcon,
-                                    contentDescription = null,
-                                    tint = badgeColor,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = fallbackIcon,
+                                contentDescription = title,
+                                tint = badgeColor,
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                     }
 
