@@ -1,0 +1,8 @@
+{
+  "name": "Main CalcVault",
+  "description": "A disguised calculator vault that securely hides private photos, videos, and secret notes behind a secret PIN code.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

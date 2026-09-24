@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="vault_files" path="." />
+    <cache-path name="vault_cache" path="." />
+    <external-files-path name="vault_external" path="." />
+    <external-path name="vault_external_storage" path="." />
+</paths>
