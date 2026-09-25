@@ -34,6 +34,12 @@ enum class AppDisguise(
         label = "Music Player",
         iconRes = R.drawable.ic_disguise_music_1789899183733,
         description = "Disguise as an audio/music player"
+    ),
+    CLOCK(
+        id = "clock",
+        label = "Clock",
+        iconRes = R.drawable.ic_disguise_clock,
+        description = "Disguise as an analog clock and timer app"
     );
 
     companion object {
@@ -48,10 +54,11 @@ class AppCamouflageManager(private val context: Context) {
 
     private fun getComponentForDisguise(disguise: AppDisguise): ComponentName {
         val className = when (disguise) {
-            AppDisguise.CALCULATOR -> "com.example.MainActivity"
+            AppDisguise.CALCULATOR -> "com.example.MainActivityCalculator"
             AppDisguise.WEATHER -> "com.example.MainActivityWeather"
             AppDisguise.NOTES -> "com.example.MainActivityNotes"
             AppDisguise.MUSIC -> "com.example.MainActivityMusic"
+            AppDisguise.CLOCK -> "com.example.MainActivityClock"
         }
         return ComponentName(context.packageName, className)
     }
@@ -65,7 +72,15 @@ class AppCamouflageManager(private val context: Context) {
         return try {
             val pm = context.packageManager
 
-            // Step 1: Enable the target disguise FIRST to avoid launcher having 0 components
+            // Step 1: Ensure core root MainActivity is ALWAYS enabled so targetActivity is never disabled
+            val mainComp = ComponentName(context.packageName, "com.example.MainActivity")
+            pm.setComponentEnabledSetting(
+                mainComp,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            )
+
+            // Step 2: Enable the target disguise FIRST to avoid launcher having 0 components
             val targetComponent = getComponentForDisguise(targetDisguise)
             pm.setComponentEnabledSetting(
                 targetComponent,
@@ -73,7 +88,7 @@ class AppCamouflageManager(private val context: Context) {
                 PackageManager.DONT_KILL_APP
             )
 
-            // Step 2: Disable all other disguises
+            // Step 3: Disable all other disguise aliases
             for (disguise in AppDisguise.entries) {
                 if (disguise != targetDisguise) {
                     try {

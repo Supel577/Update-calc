@@ -13,6 +13,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -103,41 +105,18 @@ fun SafeAppIconImage(
     iconRes: Int,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     val context = LocalContext.current
-    val bitmap = remember(iconRes) {
-        try {
-            val drawable = androidx.core.content.ContextCompat.getDrawable(context, iconRes)
-            drawable?.let {
-                val w = (if (it.intrinsicWidth > 0) it.intrinsicWidth else 128).coerceAtMost(256)
-                val h = (if (it.intrinsicHeight > 0) it.intrinsicHeight else 128).coerceAtMost(256)
-                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                val canvas = android.graphics.Canvas(bmp)
-                it.setBounds(0, 0, w, h)
-                it.draw(canvas)
-                bmp
-            }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = contentScale
-        )
-    } else {
-        Icon(
-            imageVector = Icons.Default.Visibility,
-            contentDescription = contentDescription,
-            tint = Color(0xFF38BDF8),
-            modifier = modifier
-        )
-    }
+    AsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(iconRes)
+            .crossfade(true)
+            .build(),
+        contentDescription = contentDescription,
+        modifier = modifier,
+        contentScale = contentScale
+    )
 }
 
 @Composable
@@ -357,7 +336,7 @@ fun DisguiseIconDialog(
                                             if (ok) {
                                                 Toast.makeText(
                                                     context,
-                                                    "Switched disguise to ${disguise.label}! Launcher will update.",
+                                                    "সফলভাবে '${disguise.label}' আইকন সেট হয়েছে! হোম স্ক্রিন আপডেট হবে।",
                                                     Toast.LENGTH_SHORT
                                                 ).show()
                                             }
@@ -380,19 +359,24 @@ fun DisguiseIconDialog(
                                         .padding(16.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    // Big Icon Preview Box
+                                    // Big Icon Preview Box (100% correct launcher proportions)
                                     Box(
                                         modifier = Modifier
                                             .size(72.dp)
                                             .clip(RoundedCornerShape(18.dp))
                                             .background(Color(0xFF0F172A))
-                                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(18.dp)),
+                                            .border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = if (isSelected) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(18.dp)
+                                            ),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         SafeAppIconImage(
                                             iconRes = disguise.iconRes,
                                             contentDescription = disguise.label,
-                                            modifier = Modifier.size(52.dp)
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
                                         )
 
                                         if (isSelected) {
@@ -400,6 +384,7 @@ fun DisguiseIconDialog(
                                                 modifier = Modifier
                                                     .size(24.dp)
                                                     .align(Alignment.TopEnd)
+                                                    .padding(2.dp)
                                                     .background(Color(0xFF38BDF8), CircleShape),
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -407,7 +392,7 @@ fun DisguiseIconDialog(
                                                     imageVector = Icons.Default.Check,
                                                     contentDescription = "Active",
                                                     tint = Color.Black,
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(14.dp)
                                                 )
                                             }
                                         }
@@ -619,7 +604,8 @@ fun DisguiseIconDialog(
                                         SafeAppIconImage(
                                             iconRes = preset.drawableRes,
                                             contentDescription = preset.name,
-                                            modifier = Modifier.size(38.dp)
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
                                         )
                                     }
 

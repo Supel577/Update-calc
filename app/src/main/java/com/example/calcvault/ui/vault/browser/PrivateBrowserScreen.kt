@@ -230,26 +230,21 @@ fun PrivateBrowserScreen(
         onNavigateBack()
     }
 
-    BackHandler {
+    val navigatePageBack: () -> Unit = {
         keyboardController?.hide()
-        val currentTime = System.currentTimeMillis()
-        if (currentDisplayUrl.isEmpty()) {
-            // Already at browser home/search -> immediately exit to vault!
-            safeExitBrowser()
+        if (webViewRef?.canGoBack() == true) {
+            webViewRef?.goBack()
+        } else if (currentDisplayUrl.isNotEmpty()) {
+            currentDisplayUrl = ""
+            urlInput = ""
+            webViewRef?.loadUrl("about:blank")
         } else {
-            // Browsing a web page or search results
-            if (currentTime - lastBackPressTime < 2000L) {
-                // Quick double back press -> exit immediately to vault!
-                safeExitBrowser()
-            } else if (webViewRef?.canGoBack() == true) {
-                lastBackPressTime = currentTime
-                Toast.makeText(context, "ভল্টে ফিরতে আবার ব্যাক চাপুন", Toast.LENGTH_SHORT).show()
-                webViewRef?.goBack()
-            } else {
-                // Reached top of web page history -> exit immediately to vault!
-                safeExitBrowser()
-            }
+            Toast.makeText(context, "ব্রাউজার থেকে বের হতে নিচের লাল বাটন (🚪) চাপুন", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    BackHandler {
+        navigatePageBack()
     }
 
     Scaffold(
@@ -271,16 +266,16 @@ fun PrivateBrowserScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Navigation Back / Direct Exit to Vault
+                        // Navigation Back (One page back at a time)
                         IconButton(
                             onClick = {
-                                safeExitBrowser()
+                                navigatePageBack()
                             },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Exit to Vault",
+                                contentDescription = "Page Back",
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -446,16 +441,14 @@ fun PrivateBrowserScreen(
                     // Web Back
                     IconButton(
                         onClick = {
-                            if (webViewRef?.canGoBack() == true) {
-                                webViewRef?.goBack()
-                            }
+                            navigatePageBack()
                         },
-                        enabled = canGoBack
+                        enabled = canGoBack || currentDisplayUrl.isNotEmpty()
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Web Back",
-                            tint = if (canGoBack) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                            tint = if (canGoBack || currentDisplayUrl.isNotEmpty()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
                             modifier = Modifier.size(22.dp)
                         )
                     }

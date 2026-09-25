@@ -57,9 +57,22 @@
             android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity-alias
+            android:name="com.example.MainActivityCalculator"
+            android:targetActivity="com.example.MainActivity"
+            android:label="@string/alias_calculator"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <activity-alias
             android:name="com.example.MainActivityWeather"
@@ -95,6 +108,20 @@
             android:label="@string/alias_music"
             android:icon="@mipmap/ic_launcher_music"
             android:roundIcon="@mipmap/ic_launcher_music_round"
+            android:exported="true"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name="com.example.MainActivityClock"
+            android:targetActivity="com.example.MainActivity"
+            android:label="@string/alias_clock"
+            android:icon="@mipmap/ic_launcher_clock"
+            android:roundIcon="@mipmap/ic_launcher_clock_round"
             android:exported="true"
             android:enabled="false">
             <intent-filter>

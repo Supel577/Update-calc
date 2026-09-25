@@ -4,4 +4,5 @@
     <string name="alias_weather">Weather</string>
     <string name="alias_music">Music Player</string>
     <string name="alias_notes">Notes</string>
+    <string name="alias_clock">Clock</string>
 </resources>
