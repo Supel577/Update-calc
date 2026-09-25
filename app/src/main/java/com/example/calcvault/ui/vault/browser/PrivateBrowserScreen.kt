@@ -53,6 +53,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
@@ -83,6 +85,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -142,6 +145,8 @@ fun PrivateBrowserScreen(
     var loadingProgress by remember { mutableFloatStateOf(0f) }
     var isLoading by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
+    var canGoForward by remember { mutableStateOf(false) }
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var targetMediaAction by remember { mutableStateOf<BrowserMediaAction?>(null) }
 
@@ -206,6 +211,7 @@ fun PrivateBrowserScreen(
     }
 
     val safeExitBrowser: () -> Unit = {
+        keyboardController?.hide()
         webViewRef?.let { wv ->
             try {
                 wv.stopLoading()
@@ -225,14 +231,24 @@ fun PrivateBrowserScreen(
     }
 
     BackHandler {
-        if (webViewRef?.canGoBack() == true) {
-            webViewRef?.goBack()
-        } else if (currentDisplayUrl.isNotEmpty()) {
-            currentDisplayUrl = ""
-            urlInput = ""
-            webViewRef?.loadUrl("about:blank")
-        } else {
+        keyboardController?.hide()
+        val currentTime = System.currentTimeMillis()
+        if (currentDisplayUrl.isEmpty()) {
+            // Already at browser home/search -> immediately exit to vault!
             safeExitBrowser()
+        } else {
+            // Browsing a web page or search results
+            if (currentTime - lastBackPressTime < 2000L) {
+                // Quick double back press -> exit immediately to vault!
+                safeExitBrowser()
+            } else if (webViewRef?.canGoBack() == true) {
+                lastBackPressTime = currentTime
+                Toast.makeText(context, "ভল্টে ফিরতে আবার ব্যাক চাপুন", Toast.LENGTH_SHORT).show()
+                webViewRef?.goBack()
+            } else {
+                // Reached top of web page history -> exit immediately to vault!
+                safeExitBrowser()
+            }
         }
     }
 
@@ -255,24 +271,16 @@ fun PrivateBrowserScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Navigation Back / Exit
+                        // Navigation Back / Direct Exit to Vault
                         IconButton(
                             onClick = {
-                                if (webViewRef?.canGoBack() == true) {
-                                    webViewRef?.goBack()
-                                } else if (currentDisplayUrl.isNotEmpty()) {
-                                    currentDisplayUrl = ""
-                                    urlInput = ""
-                                    webViewRef?.loadUrl("about:blank")
-                                } else {
-                                    safeExitBrowser()
-                                }
+                                safeExitBrowser()
                             },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Exit to Vault",
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -383,61 +391,29 @@ fun PrivateBrowserScreen(
                             }
                         }
 
-                        // 📸 Secret Screenshot to Vault Button!
-                        IconButton(
-                            onClick = { takeSecretScreenshot() },
-                            modifier = Modifier.size(38.dp)
+                        // Private Incognito Badge
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF10B981).copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PhotoCamera,
-                                contentDescription = VaultStrings.get(appLanguage, "browser_screenshot_btn"),
-                                tint = Color(0xFF10B981),
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        // Home Button (when viewing a webpage) or Private Shield indicator
-                        if (currentDisplayUrl.isNotEmpty()) {
-                            IconButton(
-                                onClick = {
-                                    keyboardController?.hide()
-                                    currentDisplayUrl = ""
-                                    urlInput = ""
-                                    webViewRef?.loadUrl("about:blank")
-                                },
-                                modifier = Modifier.size(38.dp)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Home,
-                                    contentDescription = "Google Home",
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.size(22.dp)
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = "Incognito",
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(14.dp)
                                 )
-                            }
-                        } else {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFF10B981).copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Security,
-                                        contentDescription = "Incognito",
-                                        tint = Color(0xFF10B981),
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Text(
-                                        text = "Private",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF10B981)
-                                    )
-                                }
+                                Text(
+                                    text = "Private",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF10B981)
+                                )
                             }
                         }
                     }
@@ -447,6 +423,98 @@ fun PrivateBrowserScreen(
                         LinearProgressIndicator(
                             progress = { loadingProgress },
                             modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        },
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+                shadowElevation = 8.dp,
+                modifier = Modifier.navigationBarsPadding()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    // Web Back
+                    IconButton(
+                        onClick = {
+                            if (webViewRef?.canGoBack() == true) {
+                                webViewRef?.goBack()
+                            }
+                        },
+                        enabled = canGoBack
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Web Back",
+                            tint = if (canGoBack) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Web Forward
+                    IconButton(
+                        onClick = {
+                            if (webViewRef?.canGoForward() == true) {
+                                webViewRef?.goForward()
+                            }
+                        },
+                        enabled = canGoForward
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Web Forward",
+                            tint = if (canGoForward) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Search Home (Google Bookmarks)
+                    IconButton(
+                        onClick = {
+                            keyboardController?.hide()
+                            currentDisplayUrl = ""
+                            urlInput = ""
+                            webViewRef?.loadUrl("about:blank")
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Search Home",
+                            tint = if (currentDisplayUrl.isEmpty()) Color(0xFF4285F4) else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Secret Screenshot directly into Vault
+                    IconButton(
+                        onClick = { takeSecretScreenshot() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = VaultStrings.get(appLanguage, "browser_screenshot_btn"),
+                            tint = Color(0xFF10B981),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Direct Exit to Vault Dashboard
+                    IconButton(
+                        onClick = { safeExitBrowser() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "ভল্টে ফিরে যান",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -553,11 +621,13 @@ fun PrivateBrowserScreen(
                                     urlInput = url
                                 }
                                 canGoBack = view?.canGoBack() == true
+                                canGoForward = view?.canGoForward() == true
                             }
 
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 isLoading = false
                                 canGoBack = view?.canGoBack() == true
+                                canGoForward = view?.canGoForward() == true
                             }
 
                             override fun shouldOverrideUrlLoading(
