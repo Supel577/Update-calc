@@ -164,6 +164,12 @@ class VaultRepository(
         return if (id > 0) vaultMedia.copy(id = id) else null
     }
 
+    suspend fun saveScreenshotToVault(bitmap: android.graphics.Bitmap, title: String = "Secret_Screenshot"): VaultMedia? {
+        val vaultMedia = fileManager.saveBitmapToVault(bitmap, title) ?: return null
+        val id = mediaDao.insertMedia(vaultMedia)
+        return if (id > 0) vaultMedia.copy(id = id) else null
+    }
+
     suspend fun deleteMedia(media: VaultMedia): Boolean {
         fileManager.deleteMediaFile(media)
         mediaDao.deleteMedia(media)

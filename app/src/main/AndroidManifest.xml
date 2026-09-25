@@ -36,22 +36,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
 
-        <!-- Google AdMob Application ID -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-9118208957656773~3113783846"/>
-
-        <!-- AdMob Background Optimization Flags -->
-        <meta-data
-            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
-            android:value="true"/>
-        <meta-data
-            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
-            android:value="true"/>
-        <meta-data
-            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
-            android:value="true"/>
-
         <!-- Deactivate Firebase Analytics / Ad Measurement logs since Firebase is not configured -->
         <meta-data
             android:name="firebase_analytics_collection_deactivated"

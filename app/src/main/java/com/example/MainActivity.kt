@@ -51,6 +51,17 @@ import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        init {
+            try {
+                if (!java.io.File("/dev/dri").exists()) {
+                    android.system.Os.setenv("LIBGL_ALWAYS_SOFTWARE", "1", true)
+                    android.system.Os.setenv("MESA_LOADER_DRIVER_OVERRIDE", "swrast", true)
+                }
+            } catch (_: Throwable) {}
+        }
+    }
+
     private var lastVolumeKeyTime = 0L
     private var volumePressCount = 0
 

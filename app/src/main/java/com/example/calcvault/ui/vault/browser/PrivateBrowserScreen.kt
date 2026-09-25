@@ -1,14 +1,20 @@
 package com.example.calcvault.ui.vault.browser
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
+import android.webkit.WebView.HitTestResult
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -48,12 +54,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,11 +72,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -90,8 +103,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.calcvault.data.i18n.VaultStrings
 import com.example.calcvault.data.repository.VaultRepository
+import com.example.calcvault.data.security.VaultSecurityManager
 import kotlinx.coroutines.launch
+
+private data class BrowserMediaAction(
+    val isImage: Boolean,
+    val url: String,
+    val title: String
+)
 
 private data class QuickBookmark(
     val title: String,
@@ -111,6 +133,8 @@ fun PrivateBrowserScreen(
     val coroutineScope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val securityManager = remember { VaultSecurityManager(context) }
+    val appLanguage by securityManager.appLanguageFlow.collectAsStateWithLifecycle()
 
     var urlInput by remember { mutableStateOf("") }
     var currentDisplayUrl by remember { mutableStateOf("") }
@@ -119,6 +143,7 @@ fun PrivateBrowserScreen(
     var isLoading by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var targetMediaAction by remember { mutableStateOf<BrowserMediaAction?>(null) }
 
     val quickBookmarks = remember {
         listOf(
@@ -149,6 +174,35 @@ fun PrivateBrowserScreen(
         urlInput = cleanUrl
         currentDisplayUrl = cleanUrl
         webViewRef?.loadUrl(cleanUrl)
+    }
+
+    fun takeSecretScreenshot() {
+        val wv = webViewRef
+        if (wv != null && wv.width > 0 && wv.height > 0) {
+            try {
+                val bitmap = Bitmap.createBitmap(wv.width, wv.height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                wv.draw(canvas)
+                coroutineScope.launch {
+                    Toast.makeText(context, "📸 সিক্রেট স্ক্রিনশট নেওয়া হচ্ছে...", Toast.LENGTH_SHORT).show()
+                    val title = (if (pageTitle.isNotBlank()) pageTitle else "Browser_Capture")
+                        .replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(25)
+                    val saved = repository.saveScreenshotToVault(bitmap, title)
+                    if (saved != null) {
+                        snackbarHostState.showSnackbar(
+                            message = VaultStrings.get(appLanguage, "browser_screenshot_success")
+                        )
+                    } else {
+                        snackbarHostState.showSnackbar("স্ক্রিনশট সংরক্ষণ ব্যর্থ হয়েছে")
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "ত্রুটি: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "ওয়েবপেজ এখনও প্রস্তুত হয়নি", Toast.LENGTH_SHORT).show()
+        }
     }
 
     val safeExitBrowser: () -> Unit = {
@@ -183,16 +237,14 @@ fun PrivateBrowserScreen(
     }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+        modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 2.dp,
-                shadowElevation = 3.dp
+                shadowElevation = 3.dp,
+                modifier = Modifier.statusBarsPadding()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // Unified Single Toolbar with One Integrated Search/Address Bar
@@ -331,6 +383,19 @@ fun PrivateBrowserScreen(
                             }
                         }
 
+                        // 📸 Secret Screenshot to Vault Button!
+                        IconButton(
+                            onClick = { takeSecretScreenshot() },
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = VaultStrings.get(appLanguage, "browser_screenshot_btn"),
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
                         // Home Button (when viewing a webpage) or Private Shield indicator
                         if (currentDisplayUrl.isNotEmpty()) {
                             IconButton(
@@ -340,7 +405,7 @@ fun PrivateBrowserScreen(
                                     urlInput = ""
                                     webViewRef?.loadUrl("about:blank")
                                 },
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(38.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Home,
@@ -356,9 +421,9 @@ fun PrivateBrowserScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f))
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Security,
@@ -393,21 +458,25 @@ fun PrivateBrowserScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Web Page View (Shown when navigating or viewing content)
+            // Web Page View (Always fills full layout bounds to prevent squishing)
             AndroidView(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(if (currentDisplayUrl.isEmpty()) Modifier.size(0.dp) else Modifier),
+                modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     WebView(ctx).apply {
                         webViewRef = this
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
 
-                        // Software rendering layer ensures smooth rendering without DRM rendernode failures in emulator
-                        try {
-                            setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-                        } catch (_: Throwable) {}
+                        // If DRM /dev/dri render node is not available (e.g. emulator/container), use software layer to prevent Mesa rendernode errors
+                        if (!java.io.File("/dev/dri").exists()) {
+                            try {
+                                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                            } catch (_: Throwable) {}
+                        }
 
-                        // Enable high-performance responsive browsing
+                        // Enable responsive browsing with hardware acceleration
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
@@ -419,12 +488,49 @@ fun PrivateBrowserScreen(
                             cacheMode = WebSettings.LOAD_DEFAULT
                             useWideViewPort = true
                             loadWithOverviewMode = true
+                            layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
                             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                             mediaPlaybackRequiresUserGesture = false
+                            allowFileAccess = true
+                            allowContentAccess = true
+                            textZoom = 100
                         }
 
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
+                        // Long-click context menu on images and links for Secret Vault downloads!
+                        isLongClickable = true
+                        setOnLongClickListener { v ->
+                            val wv = v as? WebView ?: return@setOnLongClickListener false
+                            val hitResult = wv.hitTestResult
+                            val type = hitResult.type
+                            val extra = hitResult.extra
+
+                            when (type) {
+                                HitTestResult.IMAGE_TYPE, HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
+                                    if (!extra.isNullOrBlank()) {
+                                        targetMediaAction = BrowserMediaAction(
+                                            isImage = true,
+                                            url = extra,
+                                            title = "ছবি ডাউনলোড ও ভল্ট সেভ"
+                                        )
+                                        true
+                                    } else false
+                                }
+                                HitTestResult.SRC_ANCHOR_TYPE -> {
+                                    if (!extra.isNullOrBlank()) {
+                                        targetMediaAction = BrowserMediaAction(
+                                            isImage = false,
+                                            url = extra,
+                                            title = "লিঙ্ক অপশন"
+                                        )
+                                        true
+                                    } else false
+                                }
+                                else -> false
+                            }
+                        }
 
                         webChromeClient = object : WebChromeClient() {
                             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -479,7 +585,7 @@ fun PrivateBrowserScreen(
                         // Custom Download Listener: Intercepts and downloads directly into secret vault!
                         setDownloadListener { url, userAgent, contentDisposition, mimetype, contentLength ->
                             coroutineScope.launch {
-                                Toast.makeText(context, "Saving download directly to Secret Vault...", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "ভল্টে ডাউনলোড হচ্ছে...", Toast.LENGTH_SHORT).show()
                                 val savedMedia = repository.downloadMediaDirectToVault(
                                     url = url,
                                     contentDisposition = contentDisposition,
@@ -487,19 +593,20 @@ fun PrivateBrowserScreen(
                                 )
                                 if (savedMedia != null) {
                                     snackbarHostState.showSnackbar(
-                                        message = "Saved to Vault: ${savedMedia.originalName} (${savedMedia.sizeBytes / 1024} KB)"
+                                        message = "✅ ভল্টে সেভ হয়েছে: ${savedMedia.originalName} (${savedMedia.sizeBytes / 1024} KB)"
                                     )
                                 } else {
                                     snackbarHostState.showSnackbar(
-                                        message = "Failed to download media to Vault"
+                                        message = "ডাউনলোড সম্পন্ন করা যায়নি"
                                     )
                                 }
                             }
                         }
                     }
                 },
-                update = {
-                    webViewRef = it
+                update = { wv ->
+                    webViewRef = wv
+                    wv.visibility = if (currentDisplayUrl.isEmpty()) View.GONE else View.VISIBLE
                 }
             )
 
@@ -711,6 +818,110 @@ fun PrivateBrowserScreen(
                 }
             }
         }
+    }
+
+    if (targetMediaAction != null) {
+        val target = targetMediaAction!!
+        AlertDialog(
+            onDismissRequest = { targetMediaAction = null },
+            icon = {
+                Icon(
+                    imageVector = if (target.isImage) Icons.Default.PhotoCamera else Icons.Default.Download,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = if (target.isImage)
+                        VaultStrings.get(appLanguage, "browser_media_options")
+                    else
+                        "লিঙ্ক / ডাউনলোড অপশন",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = target.url.take(120),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // 1. Save Directly to Secret Vault
+                    Button(
+                        onClick = {
+                            val url = target.url
+                            val isImage = target.isImage
+                            targetMediaAction = null
+                            coroutineScope.launch {
+                                Toast.makeText(context, "সিক্রেট ভল্টে ডাউনলোড হচ্ছে...", Toast.LENGTH_SHORT).show()
+                                val saved = repository.downloadMediaDirectToVault(
+                                    url = url,
+                                    contentDisposition = null,
+                                    mimeType = if (isImage) "image/jpeg" else null
+                                )
+                                if (saved != null) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "✅ ${if (isImage) "ছবিটি" else "ফাইলটি"} সিক্রেট ভল্টে সেভ হয়েছে!"
+                                    )
+                                } else {
+                                    snackbarHostState.showSnackbar("ডাউনলোড সম্পন্ন করা যায়নি")
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(VaultStrings.get(appLanguage, "browser_save_to_vault"))
+                    }
+
+                    // 2. Copy Link
+                    OutlinedButton(
+                        onClick = {
+                            val url = target.url
+                            targetMediaAction = null
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("URL", url))
+                            Toast.makeText(context, "📋 লিঙ্ক কপি হয়েছে!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(VaultStrings.get(appLanguage, "browser_copy_link"))
+                    }
+
+                    // 3. Open in Browser
+                    if (target.isImage) {
+                        TextButton(
+                            onClick = {
+                                val url = target.url
+                                targetMediaAction = null
+                                loadUrl(url)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(VaultStrings.get(appLanguage, "browser_open_link"))
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { targetMediaAction = null }) {
+                    Text("বাতিল (Close)")
+                }
+            }
+        )
     }
 
     DisposableEffect(Unit) {

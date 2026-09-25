@@ -235,7 +235,7 @@ class VaultSecurityManager(private val context: Context) {
     }
 
     fun isFlipLockEnabled(): Boolean {
-        return prefs.getBoolean(KEY_FLIP_LOCK, false)
+        return prefs.getBoolean(KEY_FLIP_LOCK, true)
     }
 
     fun setFlipLockEnabled(enabled: Boolean) {
@@ -243,7 +243,7 @@ class VaultSecurityManager(private val context: Context) {
     }
 
     fun isShakeLockEnabled(): Boolean {
-        return prefs.getBoolean(KEY_SHAKE_LOCK, false)
+        return prefs.getBoolean(KEY_SHAKE_LOCK, true)
     }
 
     fun setShakeLockEnabled(enabled: Boolean) {

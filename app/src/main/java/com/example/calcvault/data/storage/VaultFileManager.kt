@@ -2,6 +2,7 @@ package com.example.calcvault.data.storage
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -289,12 +290,62 @@ class VaultFileManager(private val context: Context) {
         }
     }
 
+    suspend fun saveBitmapToVault(bitmap: Bitmap, title: String): VaultMedia? = withContext(Dispatchers.IO) {
+        try {
+            val cleanTitle = title.replace(Regex("[^a-zA-Z0-9_\\-]"), "_").trim()
+            val uniqueFileName = "vault_screenshot_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.png"
+            val destinationFile = File(photosDir, uniqueFileName)
+            FileOutputStream(destinationFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+            val fileSize = destinationFile.length()
+            VaultMedia(
+                fileName = uniqueFileName,
+                originalName = if (cleanTitle.isNotBlank()) "$cleanTitle.png" else "Screenshot.png",
+                mediaType = VaultMediaType.PHOTO,
+                sizeBytes = fileSize,
+                dateAdded = System.currentTimeMillis(),
+                relativePath = "photos/$uniqueFileName"
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     suspend fun downloadMediaDirectly(
         url: String,
         contentDisposition: String?,
         mimeType: String?
     ): VaultMedia? = withContext(Dispatchers.IO) {
         try {
+            // Handle Data URIs (e.g. data:image/jpeg;base64,...) common on Google Images
+            if (url.startsWith("data:", ignoreCase = true)) {
+                val isImage = url.startsWith("data:image", ignoreCase = true)
+                val ext = when {
+                    url.contains("image/png", ignoreCase = true) -> "png"
+                    url.contains("image/webp", ignoreCase = true) -> "webp"
+                    url.contains("image/gif", ignoreCase = true) -> "gif"
+                    isImage -> "jpg"
+                    else -> "bin"
+                }
+                val base64Data = if (url.contains("base64,")) url.substringAfter("base64,") else ""
+                if (base64Data.isNotBlank()) {
+                    val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                    val uniqueFileName = "vault_dl_${UUID.randomUUID()}.$ext"
+                    val destinationFile = File(if (isImage) photosDir else documentsDir, uniqueFileName)
+                    FileOutputStream(destinationFile).use { it.write(bytes) }
+                    return@withContext VaultMedia(
+                        fileName = uniqueFileName,
+                        originalName = "Downloaded_Image.$ext",
+                        mediaType = if (isImage) VaultMediaType.PHOTO else VaultMediaType.DOCUMENT,
+                        sizeBytes = destinationFile.length(),
+                        dateAdded = System.currentTimeMillis(),
+                        relativePath = if (isImage) "photos/$uniqueFileName" else "documents/$uniqueFileName"
+                    )
+                }
+            }
+
             val guessedName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
             val isVideo = (mimeType != null && mimeType.startsWith("video")) ||
                     guessedName.endsWith(".mp4", ignoreCase = true) ||
@@ -307,8 +358,18 @@ class VaultFileManager(private val context: Context) {
             val uniqueFileName = "vault_dl_${UUID.randomUUID()}.$ext"
             val destinationFile = File(targetDir, uniqueFileName)
 
-            val client = okhttp3.OkHttpClient()
-            val request = okhttp3.Request.Builder().url(url).build()
+            val client = okhttp3.OkHttpClient.Builder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .build()
+
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36")
+                .build()
+
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
                 val body = response.body ?: return@withContext null

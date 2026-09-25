@@ -103,9 +103,7 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.coil.video)
   implementation(libs.androidx.security.crypto)
-  implementation(libs.play.services.ads) {
-    exclude(group = "androidx.privacysandbox.ads")
-  }
+  // implementation(libs.play.services.ads)
   // implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
   // Uncomment to use Firestore:
